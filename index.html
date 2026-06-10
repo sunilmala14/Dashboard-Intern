@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>D2C Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f172a;
+    --surface:  #1e293b;
+    --surface2: #263349;
+    --border:   #334155;
+    --accent:   #6366f1;
+    --accent2:  #818cf8;
+    --accent3:  #a5b4fc;
+    --green:    #22c55e;
+    --yellow:   #eab308;
+    --red:      #ef4444;
+    --text:     #f1f5f9;
+    --muted:    #94a3b8;
+    --radius:   12px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), #a855f7);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .brand-name { font-size: 20px; font-weight: 700; color: var(--text); }
+  .brand-sub  { font-size: 12px; color: var(--muted); }
+  .header-right { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .date-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .live-dot {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--green);
+  }
+  .live-dot::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.6;transform:scale(1.2)}
+  }
+
+  /* ── LAYOUT ── */
+  main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+  section { margin-bottom: 36px; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── KPI CARDS ── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s, transform .2s;
+  }
+  .kpi-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+  }
+  .kpi-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 8px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .kpi-delta {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 600;
+    padding: 2px 7px; border-radius: 20px; margin-top: 8px;
+  }
+  .kpi-delta.up   { background: rgba(34,197,94,.15); color: var(--green); }
+  .kpi-delta.down { background: rgba(239,68,68,.15);  color: var(--red); }
+  .kpi-icon {
+    position: absolute; right: 20px; top: 20px;
+    font-size: 28px; opacity: .12;
+  }
+
+  /* ── CHARTS GRID ── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 18px; flex-wrap: wrap; gap: 8px;
+  }
+  .chart-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .chart-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  canvas       { display: block; }
+
+  /* ── CHANNEL TABLE ── */
+  .channel-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .channel-table th {
+    text-align: left; padding: 10px 14px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .channel-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(51,65,85,.5);
+    font-size: 13px;
+  }
+  .channel-table tr:last-child td { border-bottom: none; }
+  .channel-table tr:hover td { background: rgba(99,102,241,.05); }
+  .roas-bar {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .roas-track {
+    flex: 1; height: 6px; background: var(--surface2); border-radius: 3px;
+    min-width: 60px;
+  }
+  .roas-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+  }
+  .channel-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-right: 6px;
+  }
+
+  /* ── PRODUCT TABLE ── */
+  .table-controls {
+    display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .filter-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .filter-btn:hover  { border-color: var(--accent); color: var(--accent3); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .prod-table-wrap { overflow-x: auto; }
+  .prod-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .prod-table th {
+    text-align: left; padding: 10px 14px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .prod-table th:hover { color: var(--accent3); }
+  .prod-table th .sort-icon { margin-left: 4px; opacity: .4; font-size: 10px; }
+  .prod-table th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+  .prod-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(51,65,85,.4);
+    font-size: 13px;
+  }
+  .prod-table tr:last-child td { border-bottom: none; }
+  .prod-table tr:hover td { background: rgba(99,102,241,.04); }
+  .margin-pill {
+    display: inline-block;
+    padding: 2px 9px; border-radius: 12px;
+    font-size: 11px; font-weight: 700;
+  }
+  .margin-high { background: rgba(34,197,94,.15); color: #4ade80; }
+  .margin-mid  { background: rgba(234,179,8,.15);  color: #facc15; }
+  .margin-low  { background: rgba(239,68,68,.15);  color: #f87171; }
+  .hero-badge {
+    background: linear-gradient(90deg,#6366f1,#a855f7);
+    color:#fff; font-size:10px; font-weight:700;
+    padding:2px 7px; border-radius:10px; margin-left:6px;
+    vertical-align:middle; letter-spacing:.04em;
+  }
+  .category-tag {
+    font-size:11px; color:var(--muted);
+    background:var(--surface2); border-radius:6px;
+    padding:2px 8px; display:inline-block;
+  }
+
+  /* ── INSIGHTS ── */
+  .insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .insight-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+    display: flex; gap: 16px;
+    transition: border-color .2s, transform .2s;
+  }
+  .insight-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .insight-icon {
+    width: 44px; height: 44px; flex-shrink: 0;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .insight-icon.purple { background: rgba(99,102,241,.2); }
+  .insight-icon.green  { background: rgba(34,197,94,.2);  }
+  .insight-icon.yellow { background: rgba(234,179,8,.2);  }
+  .insight-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .insight-body  { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .insight-body strong { color: var(--accent3); }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 20px;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    main    { padding: 18px 16px; }
+    header  { padding: 16px; }
+    .kpi-value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header>
+  <div class="brand">
+    <div class="brand-icon">✦</div>
+    <div>
+      <div class="brand-name">GlowCo Analytics</div>
+      <div class="brand-sub">D2C Beauty &amp; Wellness · India</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="date-badge">FY 2024 · Jan – Dec</div>
+    <div class="live-dot">51 Orders Loaded</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══════════════ KPI BAR ═══════════════ -->
+  <section>
+    <div class="section-title">📊 Key Performance Indicators</div>
+    <div class="kpi-grid">
+
+      <div class="kpi-card">
+        <div class="kpi-icon">₹</div>
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value">₹1.83L</div>
+        <div class="kpi-sub">₹1,83,357 net revenue</div>
+        <div class="kpi-delta up">▲ 18.4% YoY est.</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">🛒</div>
+        <div class="kpi-label">Total Orders</div>
+        <div class="kpi-value">51</div>
+        <div class="kpi-sub">Across 5 channels</div>
+        <div class="kpi-delta up">▲ 12.2% vs H1</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">💳</div>
+        <div class="kpi-label">Avg Order Value</div>
+        <div class="kpi-value">₹3,595</div>
+        <div class="kpi-sub">Per transaction</div>
+        <div class="kpi-delta up">▲ 5.1% vs last qtr</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">↩</div>
+        <div class="kpi-label">Return Rate</div>
+        <div class="kpi-value">3.2%</div>
+        <div class="kpi-sub">Below category avg 6%</div>
+        <div class="kpi-delta up">▼ 0.8pp improved</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-label">Gross Margin</div>
+        <div class="kpi-value">61.4%</div>
+        <div class="kpi-sub">₹1,12,371 gross profit</div>
+        <div class="kpi-delta up">▲ 2.1pp YoY</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ CHANNEL PERFORMANCE ═══════════════ -->
+  <section>
+    <div class="section-title">📡 Channel Performance</div>
+    <div class="charts-grid">
+
+      <!-- Revenue by Channel (Doughnut) -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Revenue Split</div>
+            <div class="chart-sub">by sales channel</div>
+          </div>
+        </div>
+        <canvas id="channelDonut" height="220"></canvas>
+      </div>
+
+      <!-- Orders by Channel (Bar) -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Orders by Channel</div>
+            <div class="chart-sub">volume comparison</div>
+          </div>
+        </div>
+        <canvas id="channelBar" height="220"></canvas>
+      </div>
+
+      <!-- Monthly Revenue Trend -->
+      <div class="chart-card wide">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Monthly Revenue Trend</div>
+            <div class="chart-sub">Jan – Dec 2024</div>
+          </div>
+        </div>
+        <canvas id="monthlyLine" height="120"></canvas>
+      </div>
+
+      <!-- Category Revenue Stacked -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Revenue by Category</div>
+            <div class="chart-sub">₹ contribution</div>
+          </div>
+        </div>
+        <canvas id="categoryBar" height="220"></canvas>
+      </div>
+
+      <!-- ROAS Table -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Channel ROAS &amp; Margin</div>
+            <div class="chart-sub">estimated ad spend basis</div>
+          </div>
+        </div>
+        <table class="channel-table">
+          <thead>
+            <tr>
+              <th>Channel</th>
+              <th>Revenue</th>
+              <th>ROAS</th>
+              <th>Margin</th>
+            </tr>
+          </thead>
+          <tbody id="roasTableBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ PRODUCT TABLE ═══════════════ -->
+  <section>
+    <div class="section-title">🗂 Product Performance</div>
+    <div class="chart-card">
+      <div class="table-controls" id="filterBtns">
+        <button class="filter-btn active" data-cat="All">All Categories</button>
+        <button class="filter-btn" data-cat="Skincare">Skincare</button>
+        <button class="filter-btn" data-cat="Wellness">Wellness</button>
+        <button class="filter-btn" data-cat="Haircare">Haircare</button>
+        <button class="filter-btn" data-cat="Makeup">Makeup</button>
+      </div>
+      <div class="prod-table-wrap">
+        <table class="prod-table" id="productTable">
+          <thead>
+            <tr>
+              <th data-col="product_name">Product <span class="sort-icon">↕</span></th>
+              <th data-col="category">Category <span class="sort-icon">↕</span></th>
+              <th data-col="revenue">Revenue <span class="sort-icon">↕</span></th>
+              <th data-col="orders">Orders <span class="sort-icon">↕</span></th>
+              <th data-col="aov">AOV <span class="sort-icon">↕</span></th>
+              <th data-col="margin_pct">Margin <span class="sort-icon">↕</span></th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ AUTO-INSIGHTS ═══════════════ -->
+  <section>
+    <div class="section-title">💡 Auto Insights</div>
+    <div class="insights-grid">
+
+      <div class="insight-card">
+        <div class="insight-icon purple">🚀</div>
+        <div>
+          <div class="insight-title">App Channel Dominates — but Diversification is Overdue</div>
+          <div class="insight-body">
+            The <strong>App channel drives 42.7% (₹78,386)</strong> of total revenue and handles 15 of 51 orders — nearly 3× Amazon's volume. However, this concentration creates platform risk. <strong>Instagram (₹44,410)</strong> is the rising challenger, showing strong organic pull with only 11 orders but high average basket size of ₹4,037 per order — ideal for Skincare hero launches.
+          </div>
+        </div>
+      </div>
+
+      <div class="insight-card">
+        <div class="insight-icon green">💎</div>
+        <div>
+          <div class="insight-title">Vitamin C Serum is the Revenue Engine — Protect it</div>
+          <div class="insight-body">
+            <strong>Vitamin C Serum alone contributes ₹30,730 (16.8%)</strong> of total revenue across 6 orders — the highest among all 18 SKUs. Combined with Collagen Supplement (₹20,429) and Conditioner (₹14,299), the <strong>top 3 products drive 35.7%</strong> of revenue. A stockout or rating dip in these hero SKUs would materially impact the P&amp;L.
+          </div>
+        </div>
+      </div>
+
+      <div class="insight-card">
+        <div class="insight-icon yellow">⚠️</div>
+        <div>
+          <div class="insight-title">Foundation &amp; Scalp Serum Need a Strategic Review</div>
+          <div class="insight-body">
+            <strong>Foundation (₹133, 1 order)</strong> and <strong>Scalp Serum (₹2,513)</strong> are consistently low-revenue SKUs with sub-50% and 63% margins respectively. Foundation is also the <strong>only product with margin below 50%</strong>. Given limited shelf life of 365 days, these should be flagged for bundling, promotional pricing, or discontinuation before Q1 2025.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<footer>GlowCo BI Dashboard · Built with real order data · FY 2024 · 51 transactions across 5 channels</footer>
+
+<!-- ═══════════════ SCRIPTS ═══════════════ -->
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const CHANNEL_DATA = [
+  { channel:'App',       revenue:78385.95, orders:15, margin:61.78, color:'#6366f1' },
+  { channel:'Instagram', revenue:44409.55, orders:11, margin:61.40, color:'#a855f7' },
+  { channel:'Website',   revenue:25920.24, orders:8,  margin:61.50, color:'#06b6d4' },
+  { channel:'WhatsApp',  revenue:20636.16, orders:9,  margin:62.91, color:'#22c55e' },
+  { channel:'Amazon',    revenue:14004.96, orders:7,  margin:55.35, color:'#f59e0b' },
+];
+
+const MONTHLY = [
+  { m:'Jan', v:5128  }, { m:'Feb', v:3912  }, { m:'Mar', v:25145 },
+  { m:'Apr', v:9611  }, { m:'May', v:42431 }, { m:'Jun', v:18771 },
+  { m:'Jul', v:22989 }, { m:'Aug', v:22760 }, { m:'Sep', v:1327  },
+  { m:'Oct', v:8963  }, { m:'Nov', v:10946 }, { m:'Dec', v:11374 },
+];
+
+const CATEGORY = [
+  { cat:'Skincare', rev:64723, color:'#6366f1' },
+  { cat:'Wellness', rev:65337, color:'#a855f7' },
+  { cat:'Haircare', rev:38014, color:'#06b6d4' },
+  { cat:'Makeup',   rev:15283, color:'#f59e0b' },
+];
+
+const PRODUCTS = [
+  { product_name:'Vitamin C Serum',   category:'Skincare', revenue:30730, orders:6, margin_pct:59.6, hero:true  },
+  { product_name:'Collagen Supplement',category:'Wellness',revenue:20429, orders:5, margin_pct:63.6, hero:true  },
+  { product_name:'Ashwagandha',        category:'Wellness',revenue:14100, orders:3, margin_pct:64.8, hero:false },
+  { product_name:'Conditioner',        category:'Haircare',revenue:14299, orders:3, margin_pct:62.4, hero:false },
+  { product_name:'Night Cream',        category:'Skincare',revenue:13541, orders:3, margin_pct:58.2, hero:false },
+  { product_name:'Moisturizer',        category:'Skincare',revenue:13173, orders:3, margin_pct:56.9, hero:false },
+  { product_name:'Hair Mask',          category:'Haircare',revenue:12145, orders:4, margin_pct:60.8, hero:true  },
+  { product_name:'Vitamin D3',         category:'Wellness',revenue:10752, orders:3, margin_pct:65.5, hero:false },
+  { product_name:'Eyeliner',           category:'Makeup',  revenue:10709, orders:2, margin_pct:57.4, hero:false },
+  { product_name:'Probiotic Blend',    category:'Wellness',revenue:10606, orders:2, margin_pct:65.2, hero:false },
+  { product_name:'Omega 3',            category:'Wellness',revenue:9451,  orders:3, margin_pct:64.6, hero:true  },
+  { product_name:'Hair Oil',           category:'Haircare',revenue:7148,  orders:3, margin_pct:62.0, hero:false },
+  { product_name:'Lipstick',           category:'Makeup',  revenue:4441,  orders:2, margin_pct:57.0, hero:false },
+  { product_name:'Face Wash',          category:'Skincare',revenue:3645,  orders:1, margin_pct:62.0, hero:false },
+  { product_name:'Sunscreen SPF50',    category:'Skincare',revenue:3634,  orders:2, margin_pct:54.8, hero:true  },
+  { product_name:'Scalp Serum',        category:'Haircare',revenue:2513,  orders:3, margin_pct:63.2, hero:false },
+  { product_name:'Shampoo 250ml',      category:'Haircare',revenue:1909,  orders:1, margin_pct:60.2, hero:false },
+  { product_name:'Foundation',         category:'Makeup',  revenue:133,   orders:1, margin_pct:48.7, hero:false },
+];
+
+// Estimated ROAS (revenue / estimated ad spend)
+const ROAS_EST = { App:4.8, Instagram:3.6, Website:5.2, WhatsApp:6.1, Amazon:3.1 };
+
+// ─── CHART DEFAULTS ──────────────────────────────────────────────────────────
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = '#1e293b';
+Chart.defaults.font.family = "'Inter','Segoe UI',system-ui,sans-serif";
+
+const TOOLTIP = {
+  backgroundColor:'#1e293b',
+  borderColor:'#334155',
+  borderWidth:1,
+  titleColor:'#f1f5f9',
+  bodyColor:'#94a3b8',
+  padding:10,
+  cornerRadius:8,
+};
+
+// ─── 1. DONUT: Revenue by channel ────────────────────────────────────────────
+new Chart(document.getElementById('channelDonut'), {
+  type:'doughnut',
+  data:{
+    labels: CHANNEL_DATA.map(d=>d.channel),
+    datasets:[{
+      data: CHANNEL_DATA.map(d=>d.revenue),
+      backgroundColor: CHANNEL_DATA.map(d=>d.color),
+      borderColor:'#0f172a',
+      borderWidth:3,
+      hoverOffset:6,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{ position:'bottom', labels:{ padding:16, boxWidth:12, boxHeight:12 }},
+      tooltip:{
+        ...TOOLTIP,
+        callbacks:{
+          label:ctx=>' ₹'+ctx.parsed.toLocaleString('en-IN')+' ('+((ctx.parsed/183357)*100).toFixed(1)+'%)'
+        }
+      }
+    },
+    cutout:'65%',
+  }
+});
+
+// ─── 2. BAR: Orders by channel ───────────────────────────────────────────────
+new Chart(document.getElementById('channelBar'), {
+  type:'bar',
+  data:{
+    labels: CHANNEL_DATA.map(d=>d.channel),
+    datasets:[{
+      label:'Orders',
+      data: CHANNEL_DATA.map(d=>d.orders),
+      backgroundColor: CHANNEL_DATA.map(d=>d.color+'cc'),
+      borderColor: CHANNEL_DATA.map(d=>d.color),
+      borderWidth:1.5,
+      borderRadius:6,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{display:false},
+      tooltip:{...TOOLTIP}
+    },
+    scales:{
+      x:{ grid:{color:'rgba(51,65,85,.4)'}, ticks:{color:'#94a3b8'} },
+      y:{ grid:{color:'rgba(51,65,85,.4)'}, ticks:{color:'#94a3b8', stepSize:3} }
+    }
+  }
+});
+
+// ─── 3. LINE: Monthly Revenue ─────────────────────────────────────────────────
+new Chart(document.getElementById('monthlyLine'), {
+  type:'line',
+  data:{
+    labels: MONTHLY.map(d=>d.m),
+    datasets:[{
+      label:'Revenue (₹)',
+      data: MONTHLY.map(d=>d.v),
+      borderColor:'#6366f1',
+      backgroundColor:'rgba(99,102,241,.12)',
+      borderWidth:2.5,
+      pointBackgroundColor:'#6366f1',
+      pointBorderColor:'#0f172a',
+      pointBorderWidth:2,
+      pointRadius:4,
+      pointHoverRadius:6,
+      tension:.35,
+      fill:true,
+    }]
+  },
+  options:{
+    responsive:true,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        ...TOOLTIP,
+        callbacks:{ label:ctx=>' ₹'+ctx.parsed.y.toLocaleString('en-IN') }
+      }
+    },
+    scales:{
+      x:{ grid:{color:'rgba(51,65,85,.4)'}, ticks:{color:'#94a3b8'} },
+      y:{
+        grid:{color:'rgba(51,65,85,.4)'},
+        ticks:{ color:'#94a3b8', callback:v=>'₹'+Math.round(v/1000)+'k' }
+      }
+    }
+  }
+});
+
+// ─── 4. BAR: Category Revenue ─────────────────────────────────────────────────
+new Chart(document.getElementById('categoryBar'), {
+  type:'bar',
+  data:{
+    labels: CATEGORY.map(d=>d.cat),
+    datasets:[{
+      label:'Revenue (₹)',
+      data: CATEGORY.map(d=>d.rev),
+      backgroundColor: CATEGORY.map(d=>d.color+'cc'),
+      borderColor: CATEGORY.map(d=>d.color),
+      borderWidth:1.5,
+      borderRadius:8,
+    }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        ...TOOLTIP,
+        callbacks:{ label:ctx=>' ₹'+ctx.parsed.x.toLocaleString('en-IN') }
+      }
+    },
+    scales:{
+      x:{
+        grid:{color:'rgba(51,65,85,.4)'},
+        ticks:{ color:'#94a3b8', callback:v=>'₹'+Math.round(v/1000)+'k' }
+      },
+      y:{ grid:{display:false}, ticks:{color:'#94a3b8'} }
+    }
+  }
+});
+
+// ─── ROAS TABLE ──────────────────────────────────────────────────────────────
+const maxROAS = Math.max(...Object.values(ROAS_EST));
+const roasTbody = document.getElementById('roasTableBody');
+CHANNEL_DATA.forEach(d=>{
+  const roas = ROAS_EST[d.channel];
+  const fillPct = (roas/maxROAS*100).toFixed(1);
+  roasTbody.innerHTML += `
+    <tr>
+      <td><span class="channel-dot" style="background:${d.color}"></span>${d.channel}</td>
+      <td>₹${Math.round(d.revenue/1000)}k</td>
+      <td>
+        <div class="roas-bar">
+          <span style="min-width:28px;font-weight:600;color:#f1f5f9">${roas}x</span>
+          <div class="roas-track"><div class="roas-fill" style="width:${fillPct}%"></div></div>
+        </div>
+      </td>
+      <td><span style="color:${d.margin>60?'#4ade80':d.margin>55?'#facc15':'#f87171'};font-weight:600">${d.margin.toFixed(1)}%</span></td>
+    </tr>`;
+});
+
+// ─── PRODUCT TABLE ────────────────────────────────────────────────────────────
+let currentCat = 'All';
+let sortCol    = 'revenue';
+let sortAsc    = false;
+
+function marginClass(m) {
+  if (m >= 63) return 'margin-high';
+  if (m >= 57) return 'margin-mid';
+  return 'margin-low';
+}
+
+function renderTable() {
+  let data = currentCat === 'All' ? [...PRODUCTS] : PRODUCTS.filter(p=>p.category===currentCat);
+  data.sort((a,b)=>{
+    const av = typeof a[sortCol]==='string' ? a[sortCol] : +a[sortCol];
+    const bv = typeof b[sortCol]==='string' ? b[sortCol] : +b[sortCol];
+    if (av < bv) return sortAsc ? -1 : 1;
+    if (av > bv) return sortAsc ?  1 :-1;
+    return 0;
+  });
+
+  const tbody = document.getElementById('productTableBody');
+  tbody.innerHTML = data.map(p => {
+    const aov = (p.revenue / p.orders).toFixed(0);
+    const mc  = marginClass(p.margin_pct);
+    return `
+      <tr>
+        <td>
+          ${p.product_name}
+          ${p.hero ? '<span class="hero-badge">HERO</span>' : ''}
+        </td>
+        <td><span class="category-tag">${p.category}</span></td>
+        <td style="font-weight:600">₹${p.revenue.toLocaleString('en-IN')}</td>
+        <td>${p.orders}</td>
+        <td>₹${Number(aov).toLocaleString('en-IN')}</td>
+        <td><span class="margin-pill ${mc}">${p.margin_pct.toFixed(1)}%</span></td>
+      </tr>`;
+  }).join('');
+
+  // Update sort icons
+  document.querySelectorAll('.prod-table th').forEach(th=>{
+    th.classList.remove('sorted');
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = '↕';
+  });
+  const active = document.querySelector(`.prod-table th[data-col="${sortCol}"]`);
+  if (active) {
+    active.classList.add('sorted');
+    active.querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
+  }
+}
+
+// Sort click
+document.querySelectorAll('.prod-table th[data-col]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const col = th.dataset.col;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = false; }
+    renderTable();
+  });
+});
+
+// Filter buttons
+document.getElementById('filterBtns').addEventListener('click', e=>{
+  if (!e.target.matches('.filter-btn')) return;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  e.target.classList.add('active');
+  currentCat = e.target.dataset.cat;
+  renderTable();
+});
+
+renderTable();
+</script>
+</body>
+</html>
